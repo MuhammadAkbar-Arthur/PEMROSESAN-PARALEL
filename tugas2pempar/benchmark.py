@@ -1,51 +1,172 @@
 import subprocess
 import time
 import csv
+import statistics
 
-# =========================
+# ==========================================
 # KONFIGURASI
-# =========================
-process_list = [1, 2, 4, 8]
+# ==========================================
+datasets = [
+    "spam_10000.csv",
+    "spam_25000.csv",
+    "spam_50000.csv",
+    "spam_75000.csv",
+    "spam_100000.csv"
+]
+
+process_counts = [2, 4, 8]
+
+trials = 5
+
+output_csv = "benchmark_results.csv"
+
+# ==========================================
+# AMBIL EXECUTION TIME
+# ==========================================
+def extract_time(output):
+    for line in output.splitlines():
+        if "Waktu eksekusi:" in line:
+            try:
+                value = float(line.split(":")[1].split()[0])
+                return value
+            except:
+                return None
+    return None
+
+# ==========================================
+# JALANKAN SERIAL
+# ==========================================
+def run_serial(dataset):
+    cmd = ["python", "tfidf_serial.py", dataset, "--no-input"]
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True
+    )
+
+    return extract_time(result.stdout)
+
+# ==========================================
+# JALANKAN PARALEL
+# ==========================================
+def run_parallel(dataset, process_count):
+    cmd = [
+        "mpiexec",
+        "-n",
+        str(process_count),
+        "python",
+        "tfidf_parallel.py",
+        dataset
+    ]
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True
+    )
+
+    return extract_time(result.stdout)
+
+# ==========================================
+# HAPUS OUTLIER
+# ==========================================
+def remove_outlier(data):
+    if len(data) <= 2:
+        return data
+
+    mean = statistics.mean(data)
+    stdev = statistics.stdev(data)
+
+    filtered = []
+
+    for x in data:
+        if abs(x - mean) <= 2 * stdev:
+            filtered.append(x)
+
+    return filtered if filtered else data
+
+# ==========================================
+# MAIN BENCHMARK
+# ==========================================
 results = []
 
-# =========================
-# RUN SERIAL
-# =========================
-print("Running SERIAL...")
-start = time.time()
-subprocess.run(["python", "tfidf_serial.py", "--no-input"], stdout=subprocess.DEVNULL)
-end = time.time()
+for dataset in datasets:
 
-serial_time = end - start
-print("Serial time:", serial_time)
+    print("\n" + "="*60)
+    print("DATASET:", dataset)
+    print("="*60)
 
-# simpan baseline
-results.append(("serial", 1, serial_time))
+    # ======================================
+    # SERIAL
+    # ======================================
+    serial_times = []
 
-# =========================
-# RUN PARALEL
-# =========================
-for p in process_list:
-    print(f"Running PARALLEL with {p} processes...")
+    for i in range(trials):
+        print(f"Serial Trial {i+1}...")
+        t = run_serial(dataset)
 
-    start = time.time()
-    subprocess.run(["mpiexec", "-n", str(p), "python", "tfidf_parallel.py"], stdout=subprocess.DEVNULL)
-    end = time.time()
+        if t is not None:
+            serial_times.append(t)
 
-    parallel_time = end - start
+    serial_filtered = remove_outlier(serial_times)
 
-    print(f"Process {p}: {parallel_time}")
+    serial_avg = statistics.mean(serial_filtered)
 
-    results.append(("parallel", p, parallel_time))
+    results.append([
+        dataset,
+        "serial",
+        1,
+        serial_times,
+        serial_avg
+    ])
 
-# =========================
+    print("Serial Average:", serial_avg)
+
+    # ======================================
+    # PARALEL
+    # ======================================
+    for p in process_counts:
+
+        parallel_times = []
+
+        for i in range(trials):
+            print(f"Parallel {p} Process Trial {i+1}...")
+
+            t = run_parallel(dataset, p)
+
+            if t is not None:
+                parallel_times.append(t)
+
+        parallel_filtered = remove_outlier(parallel_times)
+
+        parallel_avg = statistics.mean(parallel_filtered)
+
+        results.append([
+            dataset,
+            "parallel",
+            p,
+            parallel_times,
+            parallel_avg
+        ])
+
+        print(f"Parallel {p} Average:", parallel_avg)
+
+# ==========================================
 # SIMPAN CSV
-# =========================
-with open("benchmark.csv", "w", newline="") as f:
+# ==========================================
+with open(output_csv, "w", newline="") as f:
     writer = csv.writer(f)
-    writer.writerow(["mode", "process", "time"])
 
-    for row in results:
-        writer.writerow(row)
+    writer.writerow([
+        "dataset",
+        "mode",
+        "process",
+        "all_times",
+        "average_time"
+    ])
 
-print("\nData tersimpan di benchmark.csv")
+    writer.writerows(results)
+
+print("\nBenchmark selesai!")
+print("Data tersimpan di:", output_csv)

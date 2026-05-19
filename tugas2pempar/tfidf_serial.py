@@ -17,13 +17,16 @@ def load_data(filename):
 
     with open(filepath, 'r', encoding='latin-1') as f:
         next(f)  # skip header
+
         for line in f:
             parts = line.strip().split(',')
+
             if len(parts) >= 2:
                 text = parts[1]
                 documents.append(text)
 
     print("DEBUG: jumlah dokumen terbaca =", len(documents))
+
     return documents
 
 
@@ -33,6 +36,7 @@ def load_data(filename):
 def preprocess(text):
     text = text.lower()
     words = text.split()
+
     return words
 
 
@@ -61,6 +65,7 @@ def compute_df(docs_words):
 
     for doc in docs_words:
         unique_words = set(doc)
+
         for word in unique_words:
             df[word] = df.get(word, 0) + 1
 
@@ -87,8 +92,10 @@ def compute_tfidf(tf_list, idf):
 
     for tf in tf_list:
         doc_tfidf = {}
+
         for word, val in tf.items():
             doc_tfidf[word] = val * idf.get(word, 0)
+
         tfidf_list.append(doc_tfidf)
 
     return tfidf_list
@@ -104,7 +111,11 @@ def get_top_words(tfidf_list, top_n=10):
         for word, score in doc.items():
             total_score[word] = total_score.get(word, 0) + score
 
-    sorted_words = sorted(total_score.items(), key=lambda x: x[1], reverse=True)
+    sorted_words = sorted(
+        total_score.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
     return sorted_words[:top_n]
 
@@ -113,14 +124,16 @@ def get_top_words(tfidf_list, top_n=10):
 # ANALISIS DETAIL KATA
 # =========================
 def analyze_word(word, docs_words, tf_list, idf, tfidf_list):
-    print("\n" + "="*50)
+
+    print("\n" + "=" * 50)
     print("ANALISIS DETAIL KATA:", word)
-    print("="*50)
+    print("=" * 50)
 
     total_docs = len(docs_words)
 
     # cari dokumen yang mengandung kata
     doc_indices = []
+
     for i, doc in enumerate(docs_words):
         if word in doc:
             doc_indices.append(i)
@@ -131,7 +144,6 @@ def analyze_word(word, docs_words, tf_list, idf, tfidf_list):
         print("❌ Kata tidak ditemukan dalam dataset.")
         return
 
-    # IDF
     idf_value = idf[word]
 
     print("\n[STEP 1] DOCUMENT FREQUENCY (DF)")
@@ -142,53 +154,77 @@ def analyze_word(word, docs_words, tf_list, idf, tfidf_list):
     print(f"IDF = log({total_docs} / {df}) = {idf_value}")
 
     print("\n[STEP 3] TERM FREQUENCY (TF) + TF-IDF PER DOKUMEN")
-    print("-"*80)
-    print(f"{'Doc':<6} {'Jumlah Kata':<12} {'Count':<8} {'TF':<10} {'TF-IDF':<10}")
-    print("-"*80)
+
+    print("-" * 80)
+
+    print(
+        f"{'Doc':<6} {'Jumlah Kata':<12} "
+        f"{'Count':<8} {'TF':<10} {'TF-IDF':<10}"
+    )
+
+    print("-" * 80)
 
     results = []
 
     for i in doc_indices:
+
         doc = docs_words[i]
         tf = tf_list[i]
 
         total_words = len(doc)
         count = doc.count(word)
+
         tf_value = tf[word]
         tfidf_value = tfidf_list[i][word]
 
         results.append((i, tfidf_value))
 
-        print(f"{i:<6} {total_words:<12} {count:<8} {tf_value:<10.4f} {tfidf_value:<10.4f}")
+        print(
+            f"{i:<6} {total_words:<12} "
+            f"{count:<8} {tf_value:<10.4f} "
+            f"{tfidf_value:<10.4f}"
+        )
 
-    print("-"*80)
+    print("-" * 80)
 
     # TOP dokumen
-    results = sorted(results, key=lambda x: x[1], reverse=True)[:5]
+    results = sorted(
+        results,
+        key=lambda x: x[1],
+        reverse=True
+    )[:5]
 
     print("\n[STEP 4] TOP 5 DOKUMEN PALING RELEVAN")
+
     for doc_id, score in results:
         print(f"Doc {doc_id} → TF-IDF = {score}")
 
     print("\n[INTERPRETASI]")
     print("- TF tinggi → kata sering muncul di dokumen itu")
-    print("- IDF tinggi → kata jarang di dataset (lebih penting)")
-    print("- TF-IDF tinggi → kata sangat relevan di dokumen tersebut")
+    print("- IDF tinggi → kata jarang di dataset")
+    print("- TF-IDF tinggi → kata sangat relevan")
 
 
 # =========================
 # MAIN
 # =========================
-def main(interactive=True):
+def main(filename, interactive=True):
+
     start_time = time.time()
 
-    documents = load_data("spam.csv")
+    documents = load_data(filename)
 
     # preprocessing
-    docs_words = [preprocess(doc) for doc in documents]
+    docs_words = [
+        preprocess(doc)
+        for doc in documents
+    ]
 
     # TF
-    tf_list = [compute_tf(doc) for doc in docs_words]
+    tf_list = [
+        compute_tf(doc)
+        for doc in docs_words
+    ]
 
     # DF
     df = compute_df(docs_words)
@@ -205,12 +241,14 @@ def main(interactive=True):
     # OUTPUT GLOBAL
     # =========================
     print("\n=== HASIL MANUAL TF-IDF ===")
+
     print("Jumlah dokumen:", len(documents))
     print("Jumlah kata unik:", len(df))
     print("Waktu eksekusi:", end_time - start_time, "detik")
 
     # TOP WORDS
     print("\n=== TOP 10 KATA PALING PENTING ===")
+
     top_words = get_top_words(tfidf_list)
 
     for word, score in top_words:
@@ -220,19 +258,40 @@ def main(interactive=True):
     # INTERAKTIF
     # =========================
     if interactive:
+
         while True:
-            word = input("\nMasukkan kata (ketik 'exit' untuk keluar): ").lower()
+
+            word = input(
+                "\nMasukkan kata "
+                "(ketik 'exit' untuk keluar): "
+            ).lower()
 
             if word == "exit":
                 break
 
-            analyze_word(word, docs_words, tf_list, idf, tfidf_list)
+            analyze_word(
+                word,
+                docs_words,
+                tf_list,
+                idf,
+                tfidf_list
+            )
 
 
+# =========================
+# ENTRY POINT
+# =========================
 if __name__ == "__main__":
+
     interactive = True
 
     if "--no-input" in sys.argv:
         interactive = False
 
-    main(interactive)
+    # ambil filename dari terminal
+    if len(sys.argv) >= 2:
+        filename = sys.argv[1]
+    else:
+        filename = "spam.csv"
+
+    main(filename, interactive)
