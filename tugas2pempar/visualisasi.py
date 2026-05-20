@@ -23,6 +23,15 @@ df["dataset_size"] = df["dataset"].apply(extract_size)
 dataset_sizes = sorted(df["dataset_size"].unique())
 
 # ==========================================
+# PROCESS LIST OTOMATIS
+# ==========================================
+parallel_processes = sorted(
+    df[df["mode"] == "parallel"]["process"].unique()
+)
+
+all_process = [1] + parallel_processes
+
+# ==========================================
 # OUTPUT FOLDER
 # ==========================================
 output_folder = "graphs"
@@ -49,7 +58,7 @@ def add_labels(x, y):
 # ==========================================
 for size in dataset_sizes:
 
-    plt.figure(figsize=(10,6))
+    plt.figure(figsize=(11,6))
 
     temp = df[df["dataset_size"] == size]
 
@@ -105,8 +114,9 @@ for size in dataset_sizes:
     plt.scatter(
         optimal_x,
         min_time,
-        s=200,
+        s=250,
         marker='*',
+        color='red',
         label=f'Optimal ({optimal_x} Process)'
     )
 
@@ -122,7 +132,15 @@ for size in dataset_sizes:
     plt.xlabel("Jumlah Process", fontsize=12)
     plt.ylabel("Waktu Eksekusi (detik)", fontsize=12)
 
-    plt.xticks([1,2,4,8])
+    # ======================================
+    # XTICKS OTOMATIS
+    # ======================================
+    plt.xticks(all_process)
+
+    # ======================================
+    # GRID
+    # ======================================
+    plt.grid(True, linestyle='--', alpha=0.5)
 
     # ======================================
     # FOOTNOTE
@@ -152,12 +170,13 @@ for size in dataset_sizes:
 # ==========================================
 # SUMMARY GRAPH
 # ==========================================
-plt.figure(figsize=(12,7))
+plt.figure(figsize=(13,7))
 
 # ==========================================
 # SERIAL
 # ==========================================
 serial_df = df[df["mode"] == "serial"]
+serial_df = serial_df.sort_values(by="dataset_size")
 
 plt.plot(
     serial_df["dataset_size"],
@@ -168,19 +187,21 @@ plt.plot(
     label='Serial'
 )
 
+# LABEL SERIAL
+for x, y in zip(serial_df["dataset_size"], serial_df["average_time"]):
+    plt.text(x, y + 0.02, f"{y:.2f}", fontsize=8)
+
 # ==========================================
 # PARALLEL
 # ==========================================
-parallel_processes = sorted(
-    df[df["mode"] == "parallel"]["process"].unique()
-)
-
 for p in parallel_processes:
 
     temp = df[
         (df["mode"] == "parallel") &
         (df["process"] == p)
     ]
+
+    temp = temp.sort_values(by="dataset_size")
 
     plt.plot(
         temp["dataset_size"],
@@ -191,8 +212,12 @@ for p in parallel_processes:
         label=f'Parallel {p} Process'
     )
 
+    # LABEL TITIK
+    for x, y in zip(temp["dataset_size"], temp["average_time"]):
+        plt.text(x, y + 0.02, f"{y:.2f}", fontsize=8)
+
 # ==========================================
-# LABEL
+# TITLE
 # ==========================================
 plt.title(
     "Perbandingan Serial vs Paralel MPI",
@@ -205,10 +230,18 @@ plt.ylabel("Waktu Eksekusi (detik)", fontsize=12)
 
 plt.xticks(dataset_sizes)
 
+# ==========================================
+# GRID
+# ==========================================
+plt.grid(True, linestyle='--', alpha=0.5)
+
+# ==========================================
+# FOOTNOTE
+# ==========================================
 plt.figtext(
     0.5,
     -0.03,
-    "Grafik menunjukkan pengaruh jumlah process terhadap waktu eksekusi TF-IDF",
+    "Semakin besar dataset, performa paralel MPI semakin optimal dibanding serial",
     ha="center",
     fontsize=10
 )

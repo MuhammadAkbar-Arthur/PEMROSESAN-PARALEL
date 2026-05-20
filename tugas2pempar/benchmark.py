@@ -14,7 +14,7 @@ datasets = [
     "spam_100000.csv"
 ]
 
-process_counts = [2, 4, 8]
+process_counts = [2, 4, 6, 8, 12, 16, 24]
 
 trials = 5
 
